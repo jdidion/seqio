@@ -29,23 +29,30 @@ cdef class Sequence(object):
     
     @property
     def sequence_str(self, **kwargs):
+        """Returns the sequence as a string."""
         return self.sequence.decode(**kwargs)
     
     @property
     def has_qualities(self):
+        """Whether this sequence has base quality information."""
         return self.qualities is not None:
     
     @property
     def qualities_str(self, **kwargs):
+        """Returns qualities as a phred-encoded string."""
         return self.qualities.decode(**kwargs)
     
-    def qualities_phred(self, int base=33):
-        """Return qualities as a list of integers."""
+    def qualities_int(self, int base=33):
+        """Returns qualities as a list of integers."""
         assert self.has_qualities
         return list(q - base for q in self.qualities)
     
     def __getitem__(self, key):
-        """slicing"""
+        """
+        Returns a new Sequence instance with the same name(s) but
+        with the sequence and qualities shortened according to the
+        given slice.
+        """
         return self.__class__(
             self.name,
             self.sequence[key],
@@ -63,6 +70,9 @@ cdef class Sequence(object):
         return self.length
 
     def __richcmp__(self, other, int op):
+        """
+        Implements == and !=.
+        """
         if 2 <= op <= 3:
             eq = (self.name == other.name and
                 self.sequence == other.sequence and
@@ -117,14 +127,19 @@ ctypedef struct Edit:
 
 cdef class Mutable(object):
     """
-    Sequence class in which edit operations cause the sequence and qualities to
-    be updated in-place and are stored in a stack (enabling the original sequence
-    to be reconstructed.
+    Sequence mixin that adds edit operations and replaces the __getitem__ method,
+    such that the sequence and qualities are updated in-place. Edits are logged
+    in the 'edits' list, which enables the original sequence to be reconstructed.
     """
     cdef public vector[Edit] edits
     
     def edit(self, int start=0, int stop=-1, bytes bases=EMPTY,
              bytes qualities=EMPTY, str description=''):
+        """
+        Modify the current sequence and qualities. The current bases/qualities
+        between start (inclusive) and stop (exclusive) are replaced by `bases`,
+        and a new Edit operation is generated, added to `edits`, and returned.
+        """
         cdef:
             int cur_size = len(self)
             bytes new_sequence = None
@@ -150,6 +165,8 @@ cdef class Mutable(object):
         self.edits.push_back(edit)
         return edit
         
+        # This code might make things slightly faster, at the cost
+        # of additional complexity:
         # if start < 0 and stop < 0:
         #     start = 0
         #     stop = cur_size
@@ -175,27 +192,49 @@ cdef class Mutable(object):
         # else:
     
     def insert(self, int pos, bytes bases, bytes qualities=EMPTY, str description=''):
+        """
+        Convenience method to insert a sequence directly *before* `pos`.
+        """
         return self.edit(pos, pos, bases, qualities, description)
     
-    def delete(self, int start, int stop, str description=''):
+    def delete(self, int start=0, int stop=-1, str description=''):
+        """
+        Convenience method to delete the sequence between `start` (inclusive)
+        and `stop` (exclusive).
+        """
         return self.edit(start, stop, description=description)
     
     def __getitem__(self, key):
-        # A slice is just a deletion off the front and back
+        """
+        Generates up to two deletion events - one from the front
+        of the read (if `key.start` > 0) and one from the end of
+        the read (if `key.stop` < len(self)).
+        """
         if key.stop < len(self):
-            self.edit(key.stop)
+            self.delete(start=key.stop)
         if key.start > 0:
-            self.edit(stop=key.start)
+            self.delete(stop=key.start)
         return self
 
 cdef class MutableSequence(Sequence, Mutable):
+    """
+    Inherits both Sequence and Mutable and adds no additional
+    functionality.
+    """
     pass
 
 cdef class MutableColorspaceSequence(ColorspaceSequence, Mutable):
+    """
+    Inherits both ColorspaceSequence and Mutable and adds no additional
+    functionality.
+    """
     pass
 
-def sra_colorspace_sequence(name, sequence, qualities, name2, mutable=False):
-    """Factory for an SRA colorspace sequence (which has one quality value too many)"""
+def sra_colorspace_sequence(name, sequence, qualities, name2=None, mutable=False):
+    """
+    Factory for an SRA colorspace sequence (which has one quality value too many).
+    """
+    assert qualities is not None and len(qualities) > 0
     if mutable:
         return MutableColorspaceSequence(name, sequence, qualities[1:], name2=name2)
     else:
