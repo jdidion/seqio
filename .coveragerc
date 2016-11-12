@@ -1,0 +1,13 @@
+[run]
+omit =
+    tests/*
+    setup.py
+    seqio/_version.py
+    versioneer.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplemented
+    if __name__ == .__main__.:

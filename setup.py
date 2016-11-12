@@ -16,7 +16,7 @@ from distutils.command.build_ext import build_ext as _build_ext
 
 import versioneer
 
-MIN_CYTHON_VERSION = '0.24'
+MIN_CYTHON_VERSION = '0.25'
 
 if sys.version_info < (3, 3):
     sys.stdout.write("At least Python 3.3 is required.\n")
@@ -119,7 +119,7 @@ setup(
     version = versioneer.get_version(),
     author = 'John Didion',
     author_email = 'john.didion@nih.gov',
-    description = 'high-performance reading and writing of common NGS formats',
+    description = 'High-performance reading and writing of common NGS formats',
     license = 'Public Domain',
     cmdclass = cmdclass,
     ext_modules = extensions,
@@ -131,7 +131,7 @@ setup(
         'sam' : ['pysam']
     },
     classifiers = [
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 2 - Pre-Alpha",
         "Environment :: Console",
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: MIT License",

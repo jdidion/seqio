@@ -1,0 +1,22 @@
+sudo: false
+language: python
+cache:
+  directories:
+    - $HOME/.cache/pip
+python:
+  - "3.3"
+  - "3.4"
+  - "3.5"
+
+install:
+  - pip install --upgrade pip wheel
+  - pip install nose2
+  - pip install cov-core
+  - pip install coveralls
+  - pip install .
+
+script:
+  - nose2 -C tests --coverage-config .coveragerc --coverage-report term-missing
+
+after_success:
+  - coveralls

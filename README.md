@@ -6,7 +6,7 @@
 * FASTQ (r+w)
 * Interleaved FASTQ (r+w)
 * SAM/BAM/CRAM (read-only)
-* Common compression formats (gz, bz, lz), which are handled automatically (via `gemisch`)
+* Common compression formats (gz, bz, lz), which are handled automatically (via [xphyle](https://github.com/jdidion/xphyle))
 
 # Details
 
@@ -14,7 +14,7 @@
 
 1. Implements critical portions of code in C (via cython).
 2. Maintains sequences and qualities as byte strings by default, rather than perform expensive encoding/decoding operations.
-3. Uses system-level compression/decompression (via `gemisch`) when possible.
+3. Uses system-level compression/decompression (via [xphyle](https://github.com/jdidion/xphyle)) when possible.
 
 The generated sequences can be either immutable or mutable. With immutable sequences, slicing always returns a new sequence, and modifications to the sequence and qualities are not supported. With mutable sequences, modifications are applied in-place and each modification is recorded as an `Edit`.
 
@@ -62,6 +62,8 @@ for read1, read2 in reader(*fq):
 
 # Dependencies
 
+These are all installable via pip:
+
 * Cython 0.25+
-* gemisch
+* xphyle
 * pysam (required for SAM/BAM/CRAM support)

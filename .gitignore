@@ -1,0 +1,6 @@
+.coverage
+build/
+dist/
+*.pyc
+xphyle.egg-info/
+docs/_build/

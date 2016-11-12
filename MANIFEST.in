@@ -1,0 +1,13 @@
+include versioneer.py
+include seqio/*.py
+include seqio/*.pyx
+include seqio/*.c
+include README.rst
+include LICENSE
+include tests/test*.py
+include docs/*.rst
+include docs/conf.py
+include docs/Makefile
+include docs/logo.png
+include docs/api/*.rst
+include docs/api/conf.py
