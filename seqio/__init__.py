@@ -1,10 +1,13 @@
+from xphyle import open_
+
 class FormatError(Exception):
+    """Raised when an input file (FASTA or FASTQ) is malformatted.
     """
-    Raised when an input file (FASTA or FASTQ) is malformatted.
-    """
+    pass
 
 def shorten(s, n=100):
-    """Shorten string s to at most n characters, appending "..." if necessary."""
+    """Shorten string s to at most n characters, appending "..." if necessary.
+    """
     if s is None:
         return None
     if len(s) > n:
@@ -12,7 +15,8 @@ def shorten(s, n=100):
     return s
 
 class SequenceReader(object):
-    """Read possibly compressed files containing sequences"""
+    """Read possibly compressed files containing sequences.
+    """
     _close_on_exit = False
 
     def __init__(self, file, mode='r'):
@@ -21,7 +25,7 @@ class SequenceReader(object):
         be compressed (.gz, .bz2, .xz).
         """
         if isinstance(file, str):
-            file = xopen(file, mode)
+            file = open_(file, mode)
             self._close_on_exit = True
         self._file = file
     
@@ -36,7 +40,7 @@ class SequenceReader(object):
 
     def __enter__(self):
         if self._file is None:
-            raise ValueError("I/O operation on closed SequenceReader")
+            raise IOError("I/O operation on closed SequenceReader")
         return self
 
     def __exit__(self, *args):
