@@ -13,7 +13,7 @@
 `seqio` achieves significant performance gains over similar libraries (e.g. `screed`) in three ways:
 
 1. Implements critical portions of code in C (via cython).
-2. Maintains sequences and qualities as byte strings by default, rather than perform expensive encoding/decoding operations.
+2. Maintains data as byte strings by default, rather than perform expensive encoding/decoding operations.
 3. Uses system-level compression/decompression (via [xphyle](https://github.com/jdidion/xphyle)) when possible.
 
 The generated sequences can be either immutable or mutable. With immutable sequences, slicing always returns a new sequence, and modifications to the sequence and qualities are not supported. With mutable sequences, modifications are applied in-place and each modification is recorded as an `Edit`.

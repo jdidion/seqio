@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+"""Utility methods.
+"""
+
 complement = {
     b'A' : b'T',
     b'C' : b'G',

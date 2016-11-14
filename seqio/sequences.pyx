@@ -1,18 +1,42 @@
+# kate: syntax Python;
+# cython: profile=False, emit_code_comments=False
+"""Cython implementations of sequence classes.
+"""
+
 from libcpp.vector cimport vector
+
+# Misc
+
+def truncate(bytes b, int n=100):
+    """Shorten string s to at most n characters, appending "..." if necessary.
+    """
+    if b is None:
+        return None
+    if len(b) > n:
+        b = b[:n-3] + b'...'
+    return b
+
+def decode_bytes(bytes b, **kwargs):
+    return b.decode(**kwargs)
+
+def bytes_to_qualities(bytes qualities, base=33):
+    return list(q - base for q in qualities)
+
+# Sequence classes
 
 cdef class Sequence(object):
     """A sequence record has a name and sequence, and optionally base qualities
     and an alternate name. Qualities are encoded as ascii(qual+33) by default.
     """
     cdef:
-        public str name
-        public str name2
+        public bytes name
+        public bytes name2
         public bytes sequence
         public bytes qualities
         public int length
     
-    def __init__(self, str name, bytes sequence, bytes qualities=None,
-                 str name2=None):
+    def __init__(self, bytes name, bytes sequence, bytes qualities=None,
+                 bytes name2=None):
         self.name = name
         self.name2 = name2
         self._update_sequence(sequence, qualities)
@@ -22,32 +46,45 @@ cdef class Sequence(object):
         if qualities and self.length != len(qualities):
             raise FormatError("In read named {0!r}: length of quality sequence "
                 "({1}) and length of read ({2}) do not match".format(
-                    shorten(name), len(qualities), self.length))
+                    truncate(self.name), len(self.qualities), self.length))
         self.sequence = sequence
         self.qualities = qualities
     
-    @property
+    def name_str(self, **kwargs):
+        """Returns the name as a string.
+        """
+        return self._get_cached('name', '_name_str', **kwargs)
+    
+    def name2_str(self, **kwargs):
+        """Returns the name as a string.
+        """
+        return self._get_cached('name2', '_name2_str', **kwargs)
+    
     def sequence_str(self, **kwargs):
         """Returns the sequence as a string.
         """
-        return self.sequence.decode(**kwargs)
+        return self._get_cached('sequence', '_sequence_str', **kwargs)
     
     @property
     def has_qualities(self):
         """Whether this sequence has base quality information.
         """
-        return self.qualities is not None:
+        return self.qualities is not None
     
-    @property
     def qualities_str(self, **kwargs):
         """Returns qualities as a phred-encoded string.
         """
-        return self.qualities.decode(**kwargs)
+        return self._get_cached('qualities', '_qualities_str', **kwargs)
     
     def qualities_int(self, int base=33):
         """Returns qualities as a list of integers."""
-        assert self.has_qualities
-        return list(q - base for q in self.qualities)
+        return self._get_cached(
+            'qualities', '_qualities_int', fn=bytes_to_qualities, base=base)
+    
+    def _get_cached(self, var, name, fn=decode_bytes, **kwargs):
+        if not hasattr(self, name):
+            setattr(self, name, fn(getattr(self, var), **kwargs))
+        return getattr(self, name)
     
     def __getitem__(self, key):
         """Returns a new Sequence instance with the same name(s) but with the
@@ -60,11 +97,11 @@ cdef class Sequence(object):
             self.name2)
 
     def __repr__(self):
-        qstr = ''
+        rep = b'<Sequence(name={name!r}, sequence={seq!r}'
         if self.has_qualities:
-            qstr = ', qualities={0!r}'.format(_shorten(self.qualities))
-        return '<Sequence(name={0!r}, sequence={1!r}{2})>'.format(
-            _shorten(self.name), _shorten(self.sequence), qstr)
+            rep += b', qualities={qual!r}'
+        return (rep + b')>').format(
+            name=self.name, seq=self.sequence, qual=self.qualities)
 
     def __len__(self):
         return self.length
@@ -93,28 +130,27 @@ cdef class ColorspaceSequence(Sequence):
     """
     cdef public bytes primer
     
-    def __init__(self, str name, bytes sequence, bytes qualities=None,
-                 bytes primer=None, str name2=None):
+    def __init__(self, bytes name, bytes sequence, bytes qualities=None,
+                 bytes primer=None, bytes name2=None):
         if primer is None:
             assert len(sequence) > 0
             primer = sequence[0:1]
             sequence = sequence[1:]
         
-        if not primer in ('A', 'C', 'G', 'T'):
+        if not primer in (b'A', b'C', b'G', b'T'):
             raise FormatError("Primer base is {0!r} in read {1!r}, but it "
                 "should be one of A, C, G, T.".format(
-                primer, shorten(name)))
+                primer, truncate(name)))
         
         super(Colorspace, self).__init__(name, sequence, qualities, name2)
         self.primer = primer
 
     def __repr__(self):
-        qstr = ''
-        if self.qualities is not None:
-            qstr = ', qualities={0!r}'.format(shorten(self.qualities))
-        return "<ColorspaceSequence(name={0!r}, primer={1!r}, "
-            "sequence={2!r}{3})>".format(
-            shorten(self.name), self.primer, shorten(self.sequence), qstr)
+        rep = b'<ColorspaceSequence(name={name!r}, primer={primer!r}, sequence={seq!r}'
+        if self.has_qualities:
+            rep += b', qualities={qual!r}'
+        return (rep + b')>').format(
+            name=self.name, primer=self.primer, seq=self.sequence, qual=self.qualities)
 
 cdef bytes EMPTY = b''
 
@@ -228,9 +264,10 @@ cdef class MutableColorspaceSequence(ColorspaceSequence, Mutable):
     """
     pass
 
-def sra_colorspace_sequence(name, sequence, qualities, name2=None,
-                            mutable=False):
-    """Factory for an SRA colorspace sequence (which has one quality value too
+def sra_colorspace_sequence(str name, bytes sequence, bytes qualities=None,
+                            str name2=None, bool mutable=False):
+    """
+    Factory for an SRA colorspace sequence (which has one quality value too
     many).
     """
     assert qualities is not None and len(qualities) > 0
