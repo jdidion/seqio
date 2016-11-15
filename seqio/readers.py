@@ -4,7 +4,7 @@
 from seqio.base import *
 from seqio.sequence import *
 
-class SequenceReader(FileSeqIO):
+class SingleFileReader(FileSeqIO):
     paired = False
     
     def __init__(self, path, file_format, **kwargs):
@@ -25,7 +25,7 @@ class PairedReader(object):
         return reads
 
 class PairedFileReader(SeqIO, PairedReader):
-    """Open a pair of possibly compressed file containing sequences.
+    """Read from a pair of (possibly compressed) files containing sequences.
 
     Args:
         name: A name for this sequence reader
@@ -33,7 +33,7 @@ class PairedFileReader(SeqIO, PairedReader):
         file_format: A file format name, or an instance of SeqFileFormat
     """
     def __init__(self, name, read1, read2, file_format):
-        super(PairedReader, self).__init__(file_format)
+        super(PairedFileReader, self).__init__(file_format)
         self.name = name
         self.read1 = read1
         self.read2 = read2
@@ -48,7 +48,11 @@ class PairedFileReader(SeqIO, PairedReader):
         self.read1.close()
         self.read2.close()
 
-class InterleavedFileReader(SequenceReader, PairedReader):
+class InterleavedFileReader(FileSeqIO, PairedReader):
+    def __init__(self, path, file_format, **kwargs):
+        super(InterleavedFileReader, self).__init__(
+            path, 'rb', file_format, **kwargs)
+    
     def __next__(self):
         return self.create_record(self.file_format.read_pair(self.fileobj))
     

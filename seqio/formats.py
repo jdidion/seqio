@@ -4,23 +4,6 @@
 import textwrap
 from xphyle import open_
 
-class OptionalDependency(object):
-    """Subclass property to make classmethod properties possible.
-    """
-    def __init__(self, name):
-        self.name = name
-    
-    @property
-    def lib(self):
-        """Loads the python module and replaces itself with that module.
-        
-        Returns:
-            The module
-        """
-        lib = import_module(self.name)
-        self.lib = lib
-        lib
-
 class SequenceFormat(object):
     def __init__(self, sequence_class=Sequence):
         self.sequence_class = sequence_class
@@ -44,10 +27,33 @@ class SequenceFormat(object):
         return (self.format_record(read1), self.format_record(read2))
 
 class FastA(SequenceFormat):
+    name = 'fasta'
+    aliases = ('fa',)
+    delivers_qualities = False
+    
     def __init__(self, line_length=None):
         self.text_wrapper = None
         if line_length:
             self.text_wrapper = textwrap.TextWrapper(width=line_length)
+    
+    def read_record(self, fileobj):
+        while True:
+            header = next(fileobj).rstrip()
+            if header[0] != b'>':
+                raise FormatError("Expected '>' at beginning of FASTA record")
+            elif header[0] == '#':
+                continue
+            break
+        
+        seq = []
+        while True:
+            if fileobj.peek(1) in (b'>', b''):
+                break
+            line = next(fileobj).rstrip()
+            if line:
+                seq.append(line)
+        
+        return self.sequence_class(name=header[1:], sequence=b''.join(seq))
     
     def format_record(self, record):
         if self.text_wrapper:
