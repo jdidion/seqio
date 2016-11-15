@@ -1,94 +1,151 @@
-# kate: syntax Python;
-# cython: profile=False, emit_code_comments=False
-"""Cython implementations of sequence formats.
+# -*- coding: utf-8 -*-
 """
+"""
+import textwrap
 from xphyle import open_
 
-class ClassProperty(property):
+class OptionalDependency(object):
     """Subclass property to make classmethod properties possible.
     """
-    def __get__(self, cls, owner):
-        return self.fget.__get__(None, owner)()
+    def __init__(self, name):
+        self.name = name
+    
+    @property
+    def lib(self):
+        """Loads the python module and replaces itself with that module.
+        
+        Returns:
+            The module
+        """
+        lib = import_module(self.name)
+        self.lib = lib
+        lib
 
 class SequenceFormat(object):
+    def __init__(self, sequence_class=Sequence):
+        self.sequence_class = sequence_class
+
     def open(self, path, mode, **kwargs):
         return open_(path, mode, **kwargs)
+
+    def read_record(self, fileobj):
+        raise NotImplemented()
+    
+    def read_pair(self, fileobj):
+        return (self.read_record(fileobj), self.read_record(fileobj))
+    
+    def _create_record(self, *args, **kwargs):
+        return self.sequence_class(*args, **kwargs)
+
+    def format_record(self, record):
+        raise NotImplemented()
+    
+    def format_pair(self, read1, read2):
+        return (self.format_record(read1), self.format_record(read2))
+
+class FastA(SequenceFormat):
+    def __init__(self, line_length=None):
+        self.text_wrapper = None
+        if line_length:
+            self.text_wrapper = textwrap.TextWrapper(width=line_length)
+    
+    def format_record(self, record):
+        if self.text_wrapper:
+            sequence = self.text_wrapper.fill(record.sequence_str).encode()
+        else:
+            sequence = record.sequence
+        return b''.join((b'>', record.name, b'\n', sequence, b'\n'))
+
+class FastQ(SequenceFormat):
+    name = 'fastq'
+    aliases = ('fq',)
+    delivers_qualities = True
+    
+    def read_record(self, fileobj):
+        lines = [next(fileobj).rstrip() for i in range(4)]
+        if lines[0][0] != b'@' or lines[2][0] != b'+':
+            raise FormatError(
+                "FASTQ record is formatted incorrectly: {}".format(
+                b''.join(lines)))
+        name = lines[0][1:]
+        name2 = lines[2][1:]
+        if name2 and name != name2:
+            raise FormatError(
+                "Sequence descriptions in the FASTQ file don't match "
+                "({0!r} != {1!r}).\n"
+                "The second sequence description must be either empty "
+                "or equal to the first description.".format(
+                name, name2))
+        return self._create_record(
+            name=name, name2=name2,
+            sequence=lines[1],
+            qualities=lines[3])
+    
+    def format_record(self, record):
+        return b''.join((
+            b'@', record.name, b'\n',
+            record.sequence, b'\n+',
+            record.name2, b'\n',
+            record.qualities, b'\n'
+        ))
 
 class SAM(SequenceFormat):
     """SAM/BAM/CRAM format files. Paired-end files must be name-sorted. Does not
     support secondary/supplementary reads.
     """
     name = 'sam'
-    aliases = ('sam', 'bam', 'cram')
-    readable = True
-    writeable = True
+    aliases = ('bam', 'cram')
     delivers_qualities = True
-    _lib = None
-    
-    @ClassProperty
-    @classmethod
-    def lib(self):
-        """Caches and returns the python module assocated with this file format.
-        
-        Returns:
-            The module
-        
-        Raises:
-            CompressionError if the module cannot be imported.
-        """
-        if not SAM._lib:
-            SAM._lib = import_module('pysam')
-        return SAM._lib
+    lib = OptionalDependency('pysam')
     
     def open(path, mode, **kwargs):
         return self.lib.AlignmentFile(path, mode, **kwargs)
     
+    def read_record(self, fileobj):
+        for record in fileobj:
+            if record.is_secondary or record.is_supplementary:
+                continue
+            return self._create_record(record)
     
-    
-    def __init__(self, path, sequence_class=Sequence, **kwargs):
-        super(SAMReader, self).__init__(path, **kwargs)
-        self.sequence_class = sequence_class
-    
-    def __iter__(self):
-        
-    
-    def _as_sequence(self, read):
-        return self.sequence_class(
-            read.query_name,
-            read.query_sequence,
-            ''.join(chr(33 + q) for q in read.query_qualities))
-
-class SingleEndSAMReader(SAMReader):
-    def _iter(self, sam):
-        for read in sam:
-            yield self._as_sequence(read)
-
-class Read1SingleEndSAMReader(SAMReader):
-    def _iter(self, sam):
-        for read in sam:
-            if read.is_read1:
-                yield self._as_sequence(read)
-
-class Read2SingleEndSAMReader(SAMReader):
-    def _iter(self, sam):
-        for read in sam:
-            if read.is_read2:
-                yield self._as_sequence(read)
-
-class PairedEndSAMReader(SAMReader):
-    def _iter(self, sam):
-        for reads in zip(sam, sam):
-            if reads[0].query_name != reads[1].query_name:
-                raise Exception(
-                    "Consecutive reads {}, {} in paired-end SAM/BAM file do not "
-                    "have the same name; make sure your file is name-sorted and "
-                    "does not contain any secondary/supplementary alignments.",
-                    reads[0].query_name, reads[1].query_name)
-            
-            if reads[0].is_read1:
-                assert reads[1].is_read2
+    def read_pair(self, fileobj):
+        read1 = read2 = None
+        for record in fileobj:
+            if record.is_secondary or record.is_supplementary:
+                continue
+            elif record.is_read1 and not read1:
+                read1 = self._create_record(record)
+            elif record.is_read2 and not read2:
+                read2 = self._create_record(record)
             else:
-                assert reads[1].is_read1
-                reads = (reads[1], reads[0])
-            
-            yield tuple(self._as_sequence(r) for r in reads)
+                raise FormatError(
+                    "Expected exactly one read1 and one read2 for read pair "
+                    "{}".format((read1 or read2).name))
+            if read1 and read2:
+                break
+        if read1.name != read2.name:
+            raise FormatError(
+                "Consecutive reads {}, {} in paired-end SAM/BAM file do "
+                "not have the same name; make sure your file is name-sorted.",
+                reads[0].name, reads[1].name)
+        return (read1, read2)
+    
+    def _create_record(self, record):
+        return self.sequence_class(
+            name=record.query_name,
+            sequence=record.query_sequence,
+            qualities=''.join(chr(33 + q) for q in record.query_qualities))
+    
+    def format_record(self, record):
+        record = pysam.AlignedSegment()
+        record.query_name = record.name
+        record.query_sequence = record.sequence_str
+        record.flag = 4
+        record.query_qualities = pysam.qualitystring_to_array(record.quality_str)
+        return record
+    
+    def format_pair(self, read1, read2):
+        record1 = format_record(read1)
+        record1.flag = 77
+        record2 = format_record(read2)
+        record2.flag = 141
+        return (record1, record2)
