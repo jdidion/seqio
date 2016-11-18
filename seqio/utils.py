@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """Utility classes/methods.
 """
+from importlib import import_module
+
 class OptionalDependency(object):
     """Subclass property to make classmethod properties possible.
     """
@@ -68,28 +70,8 @@ class BatchIterator(object):
         self.done = True
         self.reader.close()
 
-complement = {
-    b'A' : b'T',
-    b'C' : b'G',
-    b'R' : b'Y',
-    b'S' : b'S',
-    b'W' : b'W',
-    b'K' : b'M',
-    b'B' : b'V',
-    b'D' : b'H',
-    b'N' : b'N'
-}
-for k,v in list(complement.items()):
-    complement[v] = k
-    complement[k.lower()] = v.lower()
-    complement[v.lower()] = k.lower()
-
-def reverse_complement(seq):
-    return b''.join(complement[base] for base in reversed(seq))
-
 def sequence_names_match(r1, r2):
-    """
-    Check whether the sequences r1 and r2 have identical names, ignoring a
+    """Check whether the sequences r1 and r2 have identical names, ignoring a
     suffix of '1' or '2'. Some old paired-end reads have names that end in '/1'
     and '/2'. Also, the fastq-dump tool (used for converting SRA files to FASTQ)
     appends a .1 and .2 to paired-end reads if option -I is used.

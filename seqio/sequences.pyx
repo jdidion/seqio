@@ -1,5 +1,8 @@
 # kate: syntax Python;
 # cython: profile=False, emit_code_comments=False
+# cython: language_level=3
+# cython: boundscheck=False
+# cython: wraparound=False
 """Cython implementations of sequence classes.
 """
 
@@ -30,15 +33,13 @@ cdef class Sequence(object):
     """
     cdef:
         public bytes name
-        public bytes name2
         public bytes sequence
         public bytes qualities
         public int length
+        dict _cached_values
     
-    def __init__(self, bytes name, bytes sequence, bytes qualities=None,
-                 bytes name2=None):
+    def __init__(self, bytes name, bytes sequence, bytes qualities=None):
         self.name = name
-        self.name2 = name2
         self._update_sequence(sequence, qualities)
     
     def _update_sequence(self, bytes sequence, bytes qualities=None):
@@ -54,11 +55,6 @@ cdef class Sequence(object):
         """Returns the name as a string.
         """
         return self._get_cached('_name_str', 'name', **kwargs)
-    
-    def get_name2_str(self, **kwargs):
-        """Returns the name as a string.
-        """
-        return self._get_cached('_name2_str', 'name2', **kwargs)
     
     def get_sequence_str(self, **kwargs):
         """Returns the sequence as a string.
@@ -95,15 +91,15 @@ cdef class Sequence(object):
             '_qualities_int', 'qualities', fn=bytes_to_qualities, base=base)
     
     def _get_cached(self, name, var, fn=decode_bytes, **kwargs):
-        if not hasattr(self, name):
+        if name not in _cached_values:
             if callable(var):
                 val = var(self)
             else:
                 val = getattr(self, var)
             if fn:
                 val = fn(val, **kwargs)
-            setattr(self, name, val)
-        return getattr(self, name)
+            _cached_values[name] = val
+        return _cached_values[name]
     
     def __getitem__(self, key):
         """Returns a new Sequence instance with the same name(s) but with the
@@ -112,8 +108,7 @@ cdef class Sequence(object):
         return self.__class__(
             self.name,
             self.sequence[key],
-            self.qualities[key] if self.has_qualities else None,
-            self.name2)
+            self.qualities[key] if self.has_qualities else None)
 
     def __repr__(self):
         rep = b'<Sequence(name={name!r}, sequence={seq!r}'
@@ -141,7 +136,7 @@ cdef class Sequence(object):
 
     def __reduce__(self):
         return (Sequence, (
-            self.name, self.sequence, self.qualities, self.name2))
+            self.name, self.sequence, self.qualities))
 
 cdef class ColorspaceSequence(Sequence):
     """In colorspace, the first character is the last nucleotide of the primer
@@ -151,7 +146,7 @@ cdef class ColorspaceSequence(Sequence):
     cdef public bytes primer
     
     def __init__(self, bytes name, bytes sequence, bytes qualities=None,
-                 bytes primer=None, bytes name2=None):
+                 bytes primer=None):
         if primer is None:
             if len(sequence) == 0:
                 raise FormatError(
@@ -164,7 +159,7 @@ cdef class ColorspaceSequence(Sequence):
                 "should be one of A, C, G, T.".format(
                 primer, truncate(name)))
         
-        super(Colorspace, self).__init__(name, sequence, qualities, name2)
+        super(Colorspace, self).__init__(name, sequence, qualities)
         self.primer = primer
     
     @property
@@ -302,7 +297,7 @@ cdef class MutableColorspaceSequence(ColorspaceSequence, Mutable):
     pass
 
 def sra_colorspace_sequence(str name, bytes sequence, bytes qualities=None,
-                            str name2=None, bool mutable=False):
+                            bool mutable=False):
     """
     Factory for an SRA colorspace sequence (which has one quality value too
     many).
@@ -310,6 +305,6 @@ def sra_colorspace_sequence(str name, bytes sequence, bytes qualities=None,
     assert qualities is not None and len(qualities) > 0
     if mutable:
         return MutableColorspaceSequence(
-            name, sequence, qualities[1:], name2=name2)
+            name, sequence, qualities[1:])
     else:
-        return ColorspaceSequence(name, sequence, qualities[1:], name2=name2)
+        return ColorspaceSequence(name, sequence, qualities[1:])

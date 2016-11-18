@@ -19,15 +19,6 @@ class SeqIO(object):
     * A member 'name'
     * A function 'close(self)'
     """
-    def __init__(self, file_format):
-        if isinstance(file_format, str):
-            file_format = get_file_format(file_format)
-        self.file_format = file_format
-    
-    @property
-    def delivers_qualities(self):
-        return self.file_format.delivers_qualities
-        
     def __enter__(self):
         return self
     
@@ -37,7 +28,22 @@ class SeqIO(object):
     def __repr__(self):
         return "<{0!r}(name={1!r})>".format(self.class, self.name)
 
-class FileSeqIO(SeqIO):
+class FormatSeqIO(SeqIO):
+    """Base class for SeqIO classes with a specific file format.
+    
+    Args:
+        file_format: The file format
+    """
+    def __init__(self, file_format):
+        if isinstance(file_format, str):
+            file_format = get_file_format(file_format)
+        self.file_format = file_format
+    
+    @property
+    def delivers_qualities(self):
+        return self.file_format.delivers_qualities
+
+class FileSeqIO(FormatSeqIO):
     """Base class for SeqIO classes that read from a file.
 
     Args:

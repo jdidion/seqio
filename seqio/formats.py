@@ -4,8 +4,16 @@
 import textwrap
 from xphyle import open_
 
+# some commonly used byte sequences
+EMPTY = EMPTY
+AT = b'@'
+PLUS = b'+'
+ARROW = b'>'
+HASH = b'#'
+NEWLINE = b'\n'
+
 class SequenceFormat(object):
-    def __init__(self, sequence_class):
+    def __init__(self, sequence_class=Sequence):
         self.sequence_class = sequence_class
 
     def open(self, path, mode, **kwargs):
@@ -27,7 +35,7 @@ class SequenceFormat(object):
         return (self.format_record(read1), self.format_record(read2))
 
 class TextSequenceFormat(SequenceFormat):
-    def __init__(self, sequence_class, line_length=None):
+    def __init__(self, sequence_class=Sequence, line_length=None):
         super(TextSequenceFormat, self).__init__(sequence_class)
         self.text_wrapper = None
         if line_length:
@@ -46,29 +54,34 @@ class TextSequenceFormat(SequenceFormat):
         else:
             return record.qualities
 
-class FastA(TextSequenceFormat):
+class Fasta(TextSequenceFormat):
     name = 'fasta'
     aliases = ('fa',)
     delivers_qualities = False
     
+    def __init__(self, linesep=EMPTY, **kwargs):
+        super(Fasta, self).__init__(**kwargs)
+        self.linesep = linesep
+    
     def read_record(self, fileobj):
         while True:
             header = next(fileobj).rstrip()
-            if header[0] != b'>':
+            if header[0] != ARROW:
                 raise FormatError("Expected '>' at beginning of FASTA record")
-            elif header[0] == '#':
+            elif header[0] == HASH:
                 continue
             break
         
         seq = []
         while True:
-            if fileobj.peek(1) in (b'>', b''):
+            if fileobj.peek(1) in (ARROW, EMPTY):
                 break
             line = next(fileobj).rstrip()
             if line:
                 seq.append(line)
         
-        return self.sequence_class(name=header[1:], sequence=b''.join(seq))
+        return self.sequence_class(
+            name=header[1:], sequence=self.linesep.join(seq))
     
     def format_record(self, record):
         if self.text_wrapper:
@@ -76,19 +89,23 @@ class FastA(TextSequenceFormat):
                 record.get_sequence_str()).encode()
         else:
             sequence = record.sequence
-        return b''.join((b'>', record.name, b'\n', sequence, b'\n'))
+        return EMPTY.join((ARROW, record.name, NEWLINE, sequence, NEWLINE))
 
-class FastQ(TextSequenceFormat):
+class Fastq(TextSequenceFormat):
     name = 'fastq'
     aliases = ('fq',)
     delivers_qualities = True
     
+    def __init__(self, write_name2=False, **kwargs):
+        super(Fastq, self).__init__(self, **kwargs)
+        self.write_name2 = write_name2
+    
     def read_record(self, fileobj):
         lines = [next(fileobj).rstrip() for i in range(4)]
-        if lines[0][0] != b'@' or lines[2][0] != b'+':
+        if lines[0][0] != AT or lines[2][0] != PLUS:
             raise FormatError(
                 "FASTQ record is formatted incorrectly: {}".format(
-                b''.join(lines)))
+                EMPTY.join(lines)))
         name = lines[0][1:]
         name2 = lines[2][1:]
         if name2 and name != name2:
@@ -99,19 +116,19 @@ class FastQ(TextSequenceFormat):
                 "or equal to the first description.".format(
                 name, name2))
         return self._create_record(
-            name=name, name2=name2,
+            name=name,
             sequence=lines[1],
             qualities=lines[3])
     
     def format_record(self, record):
-        return b''.join((
-            b'@', record.name, b'\n',
-            record.sequence, b'\n+',
-            record.name2, b'\n',
-            record.qualities, b'\n'
+        return EMPTY.join((
+            AT, record.name, NEWLINE,
+            record.sequence, NEWLINE,
+            PLUS, record.name if self.write_name2 else EMPTY, NEWLINE,
+            record.qualities, NEWLINE
         ))
 
-class SAM(SequenceFormat):
+class Sam(SequenceFormat):
     """SAM/BAM/CRAM format files. Paired-end files must be name-sorted. Does not
     support secondary/supplementary reads.
     """
