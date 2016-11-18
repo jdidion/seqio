@@ -1,19 +1,19 @@
 # Overview
 
-`seqio` is a python library (3.3+ only) for highly optimized reading/writing of common NGS file formats. Specifically, `seqio` supports:
+`seqio` is a python library (3.3+ only) for highly optimized reading/writing of *raw* (*i.e.* unaligned) NGS data in a variety of formats:
 
-* FASTA (r+w)
-* FASTQ (r+w)
-* Interleaved FASTQ (r+w)
-* SAM/BAM/CRAM (read-only)
-* Common compression formats (gz, bz, lz), which are handled automatically (via [xphyle](https://github.com/jdidion/xphyle))
+* FASTA
+* FASTQ
+* Interleaved FASTQ
+* SAM/BAM/CRAM
+* Common compression formats (gz, bz2, xz), which are handled automatically (via [xphyle](https://github.com/jdidion/xphyle))
 
 # Details
 
 `seqio` achieves significant performance gains over similar libraries (e.g. `screed`) in three ways:
 
-1. Implements critical portions of code in C (via cython).
-2. Maintains data as byte strings by default, rather than perform expensive encoding/decoding operations.
+1. Implements critical portions of code in C (via Cython).
+2. Maintains data as bytes by default, rather than perform expensive string encoding/decoding operations.
 3. Uses system-level compression/decompression (via [xphyle](https://github.com/jdidion/xphyle)) when possible.
 
 The generated sequences can be either immutable or mutable. With immutable sequences, slicing always returns a new sequence, and modifications to the sequence and qualities are not supported. With mutable sequences, modifications are applied in-place and each modification is recorded as an `Edit`.
@@ -64,6 +64,6 @@ for read1, read2 in reader(*fq):
 
 These are all installable via pip:
 
-* Cython 0.25+
-* xphyle
-* pysam (required for SAM/BAM/CRAM support)
+* Cython 0.25+ (only required at build-time)
+* xphyle 1.0+
+* pysam (only required for SAM/BAM/CRAM support)
