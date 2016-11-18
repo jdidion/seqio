@@ -6,6 +6,9 @@
 """Cython implementations of sequence classes.
 """
 
+# look at sequence implementation here: https://github.com/biocore/scikit-bio
+# consider using Numpy
+
 from libcpp.vector cimport vector
 
 # Misc
