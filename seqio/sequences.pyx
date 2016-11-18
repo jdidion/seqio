@@ -50,20 +50,33 @@ cdef class Sequence(object):
         self.sequence = sequence
         self.qualities = qualities
     
-    def name_str(self, **kwargs):
+    def get_name_str(self, **kwargs):
         """Returns the name as a string.
         """
-        return self._get_cached('name', '_name_str', **kwargs)
+        return self._get_cached('_name_str', 'name', **kwargs)
     
-    def name2_str(self, **kwargs):
+    def get_name2_str(self, **kwargs):
         """Returns the name as a string.
         """
-        return self._get_cached('name2', '_name2_str', **kwargs)
+        return self._get_cached('_name2_str', 'name2', **kwargs)
     
-    def sequence_str(self, **kwargs):
+    def get_sequence_str(self, **kwargs):
         """Returns the sequence as a string.
         """
-        return self._get_cached('sequence', '_sequence_str', **kwargs)
+        return self._get_cached('_sequence_str', 'sequence', **kwargs)
+    
+    @property
+    def full_sequence(self):
+        """Returns the full sequence for output (e.g. including colorspace
+        primer).
+        """
+        return self.sequence
+    
+    def get_full_sequence_str(self, **kwargs):
+        """Returns the full sequence for output (e.g. including colorspace
+        primer).
+        """
+        return self.sequence_str(**kwargs)
     
     @property
     def has_qualities(self):
@@ -71,19 +84,25 @@ cdef class Sequence(object):
         """
         return self.qualities is not None
     
-    def qualities_str(self, **kwargs):
+    def get_qualities_str(self, **kwargs):
         """Returns qualities as a phred-encoded string.
         """
-        return self._get_cached('qualities', '_qualities_str', **kwargs)
+        return self._get_cached('_qualities_str', 'qualities', **kwargs)
     
-    def qualities_int(self, int base=33):
+    def get_qualities_int(self, int base=33):
         """Returns qualities as a list of integers."""
         return self._get_cached(
-            'qualities', '_qualities_int', fn=bytes_to_qualities, base=base)
+            '_qualities_int', 'qualities', fn=bytes_to_qualities, base=base)
     
-    def _get_cached(self, var, name, fn=decode_bytes, **kwargs):
+    def _get_cached(self, name, var, fn=decode_bytes, **kwargs):
         if not hasattr(self, name):
-            setattr(self, name, fn(getattr(self, var), **kwargs))
+            if callable(var):
+                val = var(self)
+            else:
+                val = getattr(self, var)
+            if fn:
+                val = fn(val, **kwargs)
+            setattr(self, name, val)
         return getattr(self, name)
     
     def __getitem__(self, key):
@@ -121,7 +140,8 @@ cdef class Sequence(object):
             raise NotImplementedError()
 
     def __reduce__(self):
-        return (Sequence, (self.name, self.sequence, self.qualities, self.name2))
+        return (Sequence, (
+            self.name, self.sequence, self.qualities, self.name2))
 
 cdef class ColorspaceSequence(Sequence):
     """In colorspace, the first character is the last nucleotide of the primer
@@ -133,8 +153,10 @@ cdef class ColorspaceSequence(Sequence):
     def __init__(self, bytes name, bytes sequence, bytes qualities=None,
                  bytes primer=None, bytes name2=None):
         if primer is None:
-            assert len(sequence) > 0
-            primer = sequence[0:1]
+            if len(sequence) == 0:
+                raise FormatError(
+                    "Primer must be specified or sequence cannot be empty")
+            primer = sequence[0]
             sequence = sequence[1:]
         
         if not primer in (b'A', b'C', b'G', b'T'):
@@ -144,13 +166,28 @@ cdef class ColorspaceSequence(Sequence):
         
         super(Colorspace, self).__init__(name, sequence, qualities, name2)
         self.primer = primer
-
+    
+    @property
+    def full_sequence(self):
+        return self._get_cached(
+            '_full_sequence',
+            lambda record: record.primer + record.sequence,
+            fn=None, **kwargs)
+    
+    def get_full_sequence_str(self, **kwargs):
+        return self._get_cached(
+            '_full_sequence_str',
+            lambda record: record.primer + record.sequence,
+            **kwargs)
+    
     def __repr__(self):
-        rep = b'<ColorspaceSequence(name={name!r}, primer={primer!r}, sequence={seq!r}'
+        rep = b'<ColorspaceSequence('
+            'name={name!r}, primer={primer!r}, sequence={seq!r}'
         if self.has_qualities:
             rep += b', qualities={qual!r}'
         return (rep + b')>').format(
-            name=self.name, primer=self.primer, seq=self.sequence, qual=self.qualities)
+            name=self.name, primer=self.primer, seq=self.sequence,
+            qual=self.qualities)
 
 cdef bytes EMPTY = b''
 

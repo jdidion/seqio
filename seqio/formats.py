@@ -5,7 +5,7 @@ import textwrap
 from xphyle import open_
 
 class SequenceFormat(object):
-    def __init__(self, sequence_class=Sequence):
+    def __init__(self, sequence_class):
         self.sequence_class = sequence_class
 
     def open(self, path, mode, **kwargs):
@@ -26,15 +26,30 @@ class SequenceFormat(object):
     def format_pair(self, read1, read2):
         return (self.format_record(read1), self.format_record(read2))
 
-class FastA(SequenceFormat):
-    name = 'fasta'
-    aliases = ('fa',)
-    delivers_qualities = False
-    
-    def __init__(self, line_length=None):
+class TextSequenceFormat(SequenceFormat):
+    def __init__(self, sequence_class, line_length=None):
+        super(TextSequenceFormat, self).__init__(sequence_class)
         self.text_wrapper = None
         if line_length:
             self.text_wrapper = textwrap.TextWrapper(width=line_length)
+    
+    def _get_sequence(record):
+        if self.text_wrapper:
+            return self.text_wrapper.fill(
+                record.get_full_sequence_str()).encode()
+        else:
+            return record.full_sequence
+    
+    def _get_qualities(record):
+        if self.delivers_qualities and record.has_qualities:
+            return self.text_wrapper.fill(record.get_qualities_str()).encode()
+        else:
+            return record.qualities
+
+class FastA(TextSequenceFormat):
+    name = 'fasta'
+    aliases = ('fa',)
+    delivers_qualities = False
     
     def read_record(self, fileobj):
         while True:
@@ -57,12 +72,13 @@ class FastA(SequenceFormat):
     
     def format_record(self, record):
         if self.text_wrapper:
-            sequence = self.text_wrapper.fill(record.sequence_str).encode()
+            sequence = self.text_wrapper.fill(
+                record.get_sequence_str()).encode()
         else:
             sequence = record.sequence
         return b''.join((b'>', record.name, b'\n', sequence, b'\n'))
 
-class FastQ(SequenceFormat):
+class FastQ(TextSequenceFormat):
     name = 'fastq'
     aliases = ('fq',)
     delivers_qualities = True
@@ -142,16 +158,17 @@ class SAM(SequenceFormat):
             qualities=''.join(chr(33 + q) for q in record.query_qualities))
     
     def format_record(self, record):
-        record = pysam.AlignedSegment()
+        record = self.lib.AlignedSegment()
         record.query_name = record.name
-        record.query_sequence = record.sequence_str
-        record.flag = 4
-        record.query_qualities = pysam.qualitystring_to_array(record.quality_str)
+        record.query_sequence = record.get_full_sequence_str()
+        record.flag = 4 # unmapped
+        record.query_qualities = pysam.qualitystring_to_array(
+            record.get_quality_str())
         return record
     
     def format_pair(self, read1, read2):
-        record1 = format_record(read1)
-        record1.flag = 77
-        record2 = format_record(read2)
-        record2.flag = 141
+        record1 = self.format_record(read1)
+        record1.flag = 77 # paired, unmapped, mate unmapped, first
+        record2 = self.format_record(read2)
+        record2.flag = 141 # paired, unmapped, mate unmapped, second
         return (record1, record2)
