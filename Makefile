@@ -7,13 +7,14 @@ install:
 release:
 	# tag
 	git tag $(version)
-	git push origin --tags
 	# build
 	$(call build,)
 	python setup.py sdist bdist_wheel
 	# release
 	twine register dist/seqio-$(version).tar.gz
 	twine upload dist/seqio-$(version).tar.gz
+	# push new tag after successful release
+	git push origin --tags
 
 docs:
 	make -C docs api

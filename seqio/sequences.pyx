@@ -9,6 +9,9 @@
 # look at sequence implementation here: https://github.com/biocore/scikit-bio
 # consider using Numpy
 
+# TODO: add sequence classes that inherit from scikit-bio and biopython
+# sequence classes
+
 from libcpp.vector cimport vector
 
 # Misc
