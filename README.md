@@ -70,6 +70,7 @@ These are all installable via pip:
 
 # TODO
 
-* Add xphyle plugins for sequence-specific compression formats:     
-    * http://www.nature.com.ezproxy.nihlibrary.nih.gov/nmeth/journal/v13/n12/pdf/nmeth.4037.pdf
+* Add xphyle plugins for sequence-specific compression formats:
+    * fqzcomp, quip, scalce http://www.nature.com.ezproxy.nihlibrary.nih.gov/nmeth/journal/v13/n12/pdf/nmeth.4037.pdf
     * https://github.com/COMBINE-lab/quark
+    * https://github.com/rcanovas/libCSAM
