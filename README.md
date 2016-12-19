@@ -67,3 +67,9 @@ These are all installable via pip:
 * Cython 0.25+ (only required at build-time)
 * xphyle 1.0+
 * pysam (only required for SAM/BAM/CRAM support)
+
+# TODO
+
+* Add xphyle plugins for sequence-specific compression formats:     
+    * http://www.nature.com.ezproxy.nihlibrary.nih.gov/nmeth/journal/v13/n12/pdf/nmeth.4037.pdf
+    * https://github.com/COMBINE-lab/quark
