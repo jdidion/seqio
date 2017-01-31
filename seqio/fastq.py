@@ -1,4 +1,4 @@
-from seqio.format import TextSequenceFormat
+from seqio.format import TextSequenceFormat, EMPTY, NEWLINE
 from seqio.io import (
     SingleFileReader, PairedFileReader, InterleavedFileReader,
     SingleFileWriter, PairedFileWriter, InterleavedFileWriter)
@@ -44,21 +44,23 @@ class Fastq(TextSequenceFormat):
             record.qualities, NEWLINE
         ))
 
-def open_reader(self, *files: FileListArg, mode: str = 'b', interleaved=False,
-                paired=None, format_args: dict = None, io_args: dict = None
-               ) -> Reader:
-    file_format = Fastq(**(format_args or {}))
-    if len(files) == 1:
+FASTQ_CLASSES = {
+    (False, False) : (SingleEndFileReader, SingleEndFileWriter),
+    (True, False) : (PairedFileReader, PairedFileWriter),
+    (True, True) : (InterleavedFileReader, InterleavedFileWriter)
+}
+
+def open(self, *files: FileListArg, mode: str = 'rb', interleaved: bool = False,
+         paired: bool = None, format_args: dict = None, io_args: dict = None
+        ) -> FileSeqIO:
+    if len(files) > 1:
+        if paired is False:
+            raise ValueError("More than one file given for single-end FASTQ")
         if interleaved:
-            reader_class = InterleavedFileReader
-        elif paired:
-            raise ValueError("Two files required for paired-end FASTQ")
-        else:
-            reader_class = SingleEndFileReader
-    elif paired is False:
+            raise ValueError("Interleaved FASTQ must be a single file")
+        paired = True
+    elif paired and not interleaved:
         raise ValueError("Two files required for paired-end FASTQ")
-    elif interleaved:
-        raise ValueError("Interleaved FASTQ must be a single file")
-    else:
-        reader_class = PairedEndFileReader
-    return reader_class(*files, file_format, mode=mode, **(io_args or {}))
+    klass = FASTQ_CLASSES[(paired, interleaved)][0 if 'r' in mode else 1]
+    file_format = Fastq(**(format_args or {}))
+    return klass(*files, file_format, mode=mode, **(io_args or {}))

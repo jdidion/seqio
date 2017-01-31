@@ -50,7 +50,7 @@ class FastaQualReader(SeqIO, SingleReader):
     
     def __init__(self, fastafile, qualfile, sequence_class=Sequence, **kwargs):
         self.fasta_reader = SingleFileReader(fastafile, Fasta(), **kwargs)
-        self.qual_reader = FastaReader(qualfile, Fasta(linesep=b' '), **kwargs)
+        self.qual_reader = SingleFileReader(qualfile, Fasta(linesep=b' '), **kwargs)
         self.sequence_class = sequence_class
         self.qual_conversion = {}
         for i in range(-5, 256 - 33):
@@ -119,3 +119,19 @@ class FastaQualWriter(SeqIO, SingleWriter):
     def close(self):
         self.fasta_reader.close()
         self.qual_reader.close()
+
+def open(self, *files: FileListArg, mode: str = 'rb', qualities: bool = None,
+         format_args: dict = None, io_args: dict = None) -> FileSeqIO:
+    if len(files) > 1:
+        if qualities is False:
+            raise ValueError("More than one file given for FASTA")
+        qualities = True
+    elif qualities:
+        raise ValueError("Two files required for FASTQUAL")
+    if qualities:
+        klass = FastaQualReader if 'r' in mode else FastaQualWriter
+        return klass(*files, mode=mode, format_args=format_args, io_args=io_args)
+    else:
+        klass = FastaQualReader if 'r' in mode else FastaQualWriter
+        file_format = Fastq(**(format_args or {}))
+        return klass(files[0], file_format, mode=mode, **(io_args or {}))
