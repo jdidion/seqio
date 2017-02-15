@@ -125,7 +125,7 @@ setup(
     ext_modules = extensions,
     packages = ['seqio'],
     install_requires = [
-        'gemisch'
+        'xphyle'
     ]
     extras_require = {
         'sam' : ['pysam']

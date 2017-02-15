@@ -1,5 +1,6 @@
+test = tests
 build = python setup.py install && \
-		nose2 -C tests --coverage-report term-missing --coverage-config .coveragerc
+		nose2 -C $(test) --coverage-report term-missing --coverage-config .coveragerc
 
 install:
 	$(call build,)
@@ -13,7 +14,7 @@ release:
 	# release
 	twine register dist/seqio-$(version).tar.gz
 	twine upload dist/seqio-$(version).tar.gz
-	# push new tag after successful release
+	# push new tag after successful build
 	git push origin --tags
 
 docs:
@@ -22,3 +23,6 @@ docs:
 
 readme:
 	pandoc --from=markdown --to=rst --output=README.rst README.md
+
+lint:
+	pylint xphyle

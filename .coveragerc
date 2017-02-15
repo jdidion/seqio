@@ -9,5 +9,5 @@ omit =
 exclude_lines =
     pragma: no cover
     def __repr__
-    raise NotImplemented
+    raise NotImplementedError
     if __name__ == .__main__.:
