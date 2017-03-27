@@ -70,7 +70,10 @@ These are all installable via pip:
 
 # TODO
 
+* Add FAST5 support (using poretools)
 * Add xphyle plugins for sequence-specific compression formats:
+    * Treat BAM and CRAM as compression formats using native samtools/sambamba if available
     * fqzcomp, quip, scalce http://www.nature.com.ezproxy.nihlibrary.nih.gov/nmeth/journal/v13/n12/pdf/nmeth.4037.pdf
     * https://github.com/COMBINE-lab/quark
     * https://github.com/rcanovas/libCSAM
+* Casava/BCL support might be useful to some; will wait to see if this is requested.

@@ -1,3 +1,4 @@
+# https://support.illumina.com/help/SequencingAnalysisWorkflow/Content/Vault/Informatics/Sequencing_Analysis/CASAVA/swSEQ_mCA_FASTQFiles.htm
 from seqio.format import TextSequenceFormat, EMPTY, NEWLINE
 from seqio.io import (
     SingleFileReader, PairedFileReader, InterleavedFileReader,
