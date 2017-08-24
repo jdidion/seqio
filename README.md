@@ -8,6 +8,8 @@
 * SAM/BAM/CRAM
 * Common compression formats (gz, bz2, xz), which are handled automatically (via [xphyle](https://github.com/jdidion/xphyle))
 
+`seqio` is currently in development (pre-alpha).
+
 # Details
 
 `seqio` achieves significant performance gains over similar libraries (e.g. `screed`) in three ways:
