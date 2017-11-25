@@ -82,3 +82,4 @@ These are all installable via pip:
 * Casava/BCL support might be useful to some; will wait to see if this is requested.
 * Check out similar library in Rust: https://github.com/onecodex/needletail
 * FaStore support? https://github.com/refresh-bio/FaStore
+* Check out skbio.io: http://scikit-bio.org/docs/0.4.1/index.html
