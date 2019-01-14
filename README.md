@@ -39,7 +39,7 @@ for read1, read2 in reader(*fq):
     # the following is equivalent and a bit faster:
     from seqio.util import mean_quality
     mean_qual = mean_quality(read1)
-    
+
     # for most operations (e.g. comparisons), byte array
     # sequence and qualities can be used directly
     has_adapter = read1.sequence.startswith(adapter)
@@ -47,7 +47,7 @@ for read1, read2 in reader(*fq):
     # string conversion for us, but is slightly slower
     from seqio.util import has_prefix
     has_adapter = has_prefix(read1, 'AGATCGAAT')
-    
+
     # names are stored as unicode strings
     print(read1.name)
     # sequences and qualities are stored as byte arrays,
@@ -57,7 +57,7 @@ for read1, read2 in reader(*fq):
         read2.sequence_str, read2.qualities_str))
     print("Mean read1 quality: {:.3d}".format(mean_qual))
     print("Contains adapter? {}".format(has_adapter))
-    
+
     if mean_qual >= 30 and not has_adapter:
         writer.write(read1, read2)
 ```
@@ -83,3 +83,5 @@ These are all installable via pip:
 * Check out similar library in Rust: https://github.com/onecodex/needletail
 * FaStore support? https://github.com/refresh-bio/FaStore
 * Check out skbio.io: http://scikit-bio.org/docs/0.4.1/index.html
+* Look at using [pybam](https://github.com/JohnLonginotto/pybam) instead of pysam
+* Look at using the numpy-based data structures in [biotite](https://www.biotite-python.org/)
