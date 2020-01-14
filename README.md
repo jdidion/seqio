@@ -72,6 +72,7 @@ These are all installable via pip:
 
 # TODO
 
+* Look at dnaio - maybe combine forces? https://github.com/marcelm/dnaio/
 * Add FAST5 support (using poretools)
 * Add xphyle plugins for sequence-specific compression formats:
     * Treat BAM and CRAM as compression formats using native samtools/sambamba if available
